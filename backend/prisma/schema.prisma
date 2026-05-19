@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client"
+  output = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model MenuItem {
+  id BigInt @id @default(autoincrement())
+  name String @unique
+  price Float
+  category String @default("main")
+  available Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("menu_items")
+}
+
+model Wallet {
+  id String @id @default(uuid())
+  sessionId String @unique
+  balance Float @default(0)
+  currency String @default("NGN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+model Order {
+  id String @id @default(uuid())
+  sessionId String
+  totalAmount Float
+  currency String @default("NGN")
+  status String @default("pending")
+  provider String @default("paystack")
+  paymentReference String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  scheduledAt DateTime?
+  items OrderItem[] @relation("OrderItems")
+  transaction Transaction? @relation("OrderTransaction")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+  orderId String
+  order Order @relation("OrderItems", fields:[orderId], references: [id])
+  menuItem BigInt
+  name String
+  price Float
+  quantity Int
+  category String
+
+  @@map("order_items")
+}
+
+model Transaction {
+  id  String @id @default(uuid())
+  walletId String
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  orderId String? @unique
+  order Order? @relation("OrderTransaction", fields: [orderId], references: [id])
+  amount Float
+  currency String
+  type String
+  status String @default("pending")
+  provider String
+  paymentReference String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("transactions")
+}

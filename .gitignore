@@ -1,0 +1,9 @@
+.idea
+node_modules/
+.env
+dist/
+*.log
+.ngrok/
+ngrok.js
+PLAN.md
+usetoplan.md
