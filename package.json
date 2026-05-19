@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "tsx backend/index.ts",
-    "postinstall": "cd backend && generate && prisma migrate deploy",
+    "postinstall": "cd backend && prisma generate && prisma migrate deploy",
     "seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
