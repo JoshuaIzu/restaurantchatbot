@@ -78,3 +78,14 @@ model Transaction {
 
   @@map("transactions")
 }
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String
+  sender    String   // "user" | "bot"
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}

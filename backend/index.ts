@@ -8,6 +8,7 @@ import { PrismaClient } from './generated/prisma/client';
 import { PrismaMenuRepository } from './repositories/prisma-menu.repository';
 import { PrismaWalletRepository } from './repositories/prisma-wallet.repository';
 import { PrismaOrderRepository } from './repositories/prisma-order.repository';
+import { PrismaChatRepository } from './repositories/prisma-chat.repository';
 import { ChatController } from "./controllers/chat.controller";
 import { BotEngine } from "./services/bot.engine";
 import { AdminMenuController } from './controllers/admin-menu.controller';
@@ -81,11 +82,13 @@ async function bootstrap() {
     const orderRepo = new PrismaOrderRepository(prisma);
     const botEngine = new BotEngine(menuRepo, orderRepo);
     const paymentService = new PaymentService(orderRepo, walletRepo, botEngine);
-    const chatController = new ChatController(botEngine);
+    const chatRepo = new PrismaChatRepository(prisma);
+    const chatController = new ChatController(botEngine, chatRepo);
     const adminController = new AdminMenuController(menuRepo);
     const paymentController = new PaymentController(paymentService);
     const schedulerService = new SchedulerService(orderRepo, redisUrl);
     const checkoutStrategy = new CheckoutStrategy(paymentService, schedulerService);
+
 
 
     botEngine.registerStrategy('checkout', checkoutStrategy);
@@ -120,7 +123,7 @@ async function bootstrap() {
     });
 
     botEngine.attach(new PaymentObserver(io, sessionSocketMap));
-
+    app.get('/api/chat/history/:sessionId', (req, res) => chatController.getHistory(req, res));
     app.post('/api/chat', validateChat, (req: Request, res: Response) => chatController.handleMessage(req, res));
     app.use('/api/admin/menu', adminController.router);
     app.post('/api/payment/initialize', validatePaymentInit, (req: Request, res: Response) => paymentController.initiatePayment(req, res));

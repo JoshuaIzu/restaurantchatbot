@@ -1,74 +1,228 @@
-flowchart TD
-    %% External Inputs
-    UI_Input(["Frontend Client"])
-    Webhook_Input(["Paystack API"])
-    RedisQueue(["Redis / BullMQ"])
+# Restaurant ChatBot
 
-    %% Backend Container
-    subgraph Backend [Server-Side Web App Container]
-       
-        %% Controllers
-        ChatCtrl["Chat Controller\\n(REST API Entry)"]
-        WebCtrl["Webhook Controller\\n(Security/Signature)"]
+A conversational restaurant ordering system built with TypeScript, Express.js, Vue 3, and PostgreSQL. Users interact with a chatbot interface to browse menus, place orders, and pay via Paystack or Circle USDC.
 
-        %% Core Engine
-        Engine["ChatBot Core Engine\\n(The Subject / Orchestrator)"]
+## Architecture
 
-        %% Strategies (Behavioral Pattern)
-        subgraph Strategies [Command Strategies]
-                StrategyRouter["Strategy Router"]
-            S_Main["MainMenu Strategy"]
-            S_Order["PlaceOrder Strategy"]
-            S_Checkout["Checkout Strategy"]
-            S_Cancel["CancelOrder Strategy"]
-        end
+### C4 Component Diagram
 
-        %% Services
-        PaySvc["Payment Service\\n(Paystack Adapter)"]
+```text
++=============================================================================================================+
+|  [Container: Client-Side Web Application (Astro + Vue 3 + Pinia + Tailwind + Socket.IO Client)]  [PLANNED]  |
+|                                                                                                             |
+|  [Components]                                                                                               |
+|  +------------------+    +------------------+    +------------------+    +------------------+               |
+|  |   ChatWindow     |    |   MessageBubble  |    |     InputBar     |    | TypingIndicator  |               |
+|  +------------------+    +------------------+    +------------------+    +------------------+               |
+|  +------------------+    +------------------+    +------------------+                                       |
+|  |    MenuCard      |    |  PaymentModal    |    |   Badge/Button   |                                       |
+|  +------------------+    +------------------+    +------------------+                                       |
+|                                                                                                             |
+|  [Pinia Stores]                                                                                             |
+|  +------------------+    +------------------+    +------------------+                                       |
+|  |   session.ts     |    |    chat.ts       |    |    order.ts      |                                       |
+|  +------------------+    +------------------+    +------------------+                                       |
+|                                                                                                             |
+|  [Services]                                                                                                 |
+|  +------------------+    +------------------+                                                               |
+|  |   paystack.ts    |    |    socket.ts     |                                                               |
+|  | (JS SDK wrapper) |    | (IO client)      |                                                               |
+|  +------------------+    +------------------+                                                               |
++============|==========================|======================================================================+
+             |                          |
+             | POST /api/chat           | Socket.IO connect (query: sessionId)
+             | POST /api/payment/init   | Listen: payment_success, payment_failed
+             | GET  /api/menu           |
+             | GET  /api/orders/:sid    |
+             | GET  /api/wallet/:sid    |
+             v                          v
++=============================================================================================================================+
+|  [Container: Server-Side Web Application (TypeScript Express.js + Socket.IO)]                                               |
+|                                                                                                                             |
+|  [Controllers - API Entry Points]                                                                                           |
+|  +----------------------------------+    +----------------------------------+    +----------------------------------+       |
+|  |        ChatController            |    |      PaymentController           |    |     AdminMenuController          |       |
+|  | (POST /api/chat)                 |    | (POST /api/payment/initialize)   |    | (CRUD /api/admin/menu/*)         |       |
+|  | (Delegates to BotEngine)         |    | (POST /api/payment/webhook)      |    | (requireAdminKey middleware)     |       |
+|  | (GET /api/menu, /orders, /wallet)|    | (GET /api/payment/status/:ref)   |    +----------------------------------+       |
+|  +----------------------------------+    +----------------------------------+                                               |
+|             |                                      |                                                                        |
+|             | (SessionContext)                     | (HMAC-SHA512 verification)                                             |
+|             v                                      v                                                                        |
+|  +----------------------------------+    +----------------------------------+                                               |
+|  |        BotEngine                 |    |       PaymentService             |                                               |
+|  |  (Strategy Context / Subject)    |    |  (Payment Flow Orchestrator)     |                                               |
+|  |                                  |    |                                  |                                               |
+|  |  [Built-in Strategies]           |    |  [Payment Providers]             |                                               |
+|  |  - MainMenuStrategy              |    |  - PaystackProvider (NGN)        |                                               |
+|  |  - OrderPlacementStrategy        |    |  - CircleUsdcProvider (stub)     |                                               |
+|  |  - HistoryStrategy               |    |  (via createPaymentProvider)     |                                               |
+|  |  - CancelOrderStrategy           |    +----------------------------------+                                               |
+|  |  - PaymentStatusStrategy         |              |                                                                        |
+|  |                                  |              | (Initializes payment, verifies, fulfills)                              |
+|  |  [Externally Registered]         |              v                                                                        |
+|  |  - CheckoutStrategy              |    +----------------------------------+                                               |
+|  |  - CheckoutPaymentSelection      |    |     Data Access Layer            |                                               |
+|  +----------------------------------+    |  (Repository Pattern)            |                                               |
+|             |                            |                                  |                                               |
+|             | (Routes to strategy)       |  +--------------------------+    |                                               |
+|             v                            |  | PrismaMenuRepository     |    |                                               |
+|  +----------------------------------+    |  | PrismaOrderRepository    |    |                                               |
+|  |       Command Strategies         |    |  | PrismaWalletRepository   |    |                                               |
+|  |  (Strategy Pattern)              |    |  +--------------------------+    |                                               |
+|  |                                  |    +----------------------------------+                                               |
+|  |  - MainMenuStrategy              |              |                                                                        |
+|  |  - OrderPlacementStrategy        |              | (Reads/writes menu, orders, wallets, transactions)                     |
+|  |  - CheckoutStrategy              |              v                                                                        |
+|  |  - HistoryStrategy               |    +----------------------------------+                                               |
+|  |  - CancelOrderStrategy           |    |    PostgreSQL Database           |                                               |
+|  |  - PaymentStatusStrategy         |    |  (Neon DB via PrismaPg)          |                                               |
+|  +----------------------------------+    |                                  |                                               |
+|             |                            |  [Models]                        |                                               |
+|             | (Executes commands)        |  - MenuItem, Order, OrderItem    |                                               |
+|             v                            |  - Wallet, Transaction           |                                               |
+|  +----------------------------------+    +----------------------------------+                                               |
+|  |       Event Observers            |                                                                                       |
+|  |  (Observer Pattern)              |    [Middleware]                                                                       |
+|  |                                  |    +----------------------------------+                                               |
+|  |  - LogObserver (Pino)            |    |      Zod Validation              |                                               |
+|  |  - PaymentObserver (Socket.IO)   |    |    - validateChat                |                                               |
+|  +----------------------------------+    |    - validatePaymentInit         |                                               |
+|             |                            +----------------------------------+                                               |
+|             | (Emits real-time events)                                                                                      |
+|             v                                                                                                               |
+|  +----------------------------------+    [Session Management]                                                               |
+|  |       Socket.IO Server           |    +----------------------------------+                                               |
+|  |  (sessionSocketMap)              |    |  express-session + connect-redis |                                               |
+|  |                                  |    |  (Redis-backed sessions)         |                                               |
+|  |  Events:                         |    +----------------------------------+                                               |
+|  |  - payment_success               |              |                                                                        |
+|  |  - payment_failed                |              v                                                                        |
+|  +----------------------------------+    +----------------------------------+                                               |
+|             |                            |        Redis                     |                                               |
+|             | (Targets specific client)  |  (Session storage + BullMQ)      |                                               |
+|             v                            +----------------------------------+                                               |
++=============|                                                                                                    ===========+
+              |                                           | (Queues async jobs)                                    |
+              | (Real-time payment notifications)         v                                                        |
+              |                                  +----------------------------------+                              |
+              |                                  |       BullMQ Queue               |                              |
+              |                                  |  (order-scheduler queue)         |                              |
+              |                                  +----------------------------------+                              |                                   
+              |                                           |                                                        |
+              |                                           |                                                        |
+              |                                           |                                                        |
+              |                                           |                                                        |
+              |                                           | (Processes delayed orders)                             |
+              |                                           v                                                        |
+              |                                  +----------------------------------+                              |
+              |                                  |     SchedulerService             |                              |
+              |                                  |  (Worker + Queue disposal)       |                              |
+              |                                  |  (graceful shutdown)             |                              |
+              |                                  +----------------------------------+                              |
+              |                                                                                                    |
+              v                                                                                                    v
++=============================================================================================================================+
+|  [External Systems]                                                                                                         |
+|                                                                                                                             |
+|  +----------------------------------+    +----------------------------------+                                               |
+|  |       Paystack API               |    |       Circle USDC API            |                                               |
+|  |  (Payment Gateway - NGN)         |    |  (Crypto Payments)               |                                               |
+|  |                                  |    |                                  |                                               |
+|  |  - POST /transaction/initialize  |    |  - To be  implemented            |                                               |
+|  |  - GET /transaction/status/:ref |     |                                  |                                               |
+|  |  - GET /transaction/verify/:ref  |    |                                  |                                               |
+|  |  - POST /webhook (HMAC verified) |    |                                  |                                               |
+|  +----------------------------------+    +----------------------------------+                                               |
++=============================================================================================================================+
+```
 
-        %% Repositories (Data Access)
-        subgraph Repositories [Data Access Layer]
-            MenuRepo["Menu Repository"]
-            OrderRepo["Order & Loyalty Repository"]
-        end
+### Component Flow Summary
 
-        %% Observers (Behavioral Pattern)
-        subgraph Observers [Event Observers]
-            Obs_Logger["Analytics Observer"]
-            Obs_Worker["Background Dispatcher"]
-        end
-    end
+#### 1. Chat Flow
 
-    %% Arrow Definitions (The Process Flow)
-    UI_Input -- "POST /api/chat" --> ChatCtrl
-    Webhook_Input -- "POST /webhook" --> WebCtrl
+```
+Frontend (POST /api/chat)
+  -> ChatController (extracts message, builds SessionContext from Express session)
+  -> BotEngine.handleInput() (resolves strategy based on session state + input)
+  -> CommandStrategy.execute() (processes business logic, updates cart/state)
+  -> BotEngine returns { messages, newState }
+  -> ChatController saves session to Redis, returns response to frontend
+```
 
-    ChatCtrl -- "Passes input & SessionContext" --> Engine
-        Engine -- "Routes based on state" --> StrategyRouter
-        StrategyRouter --> S_Main
-        StrategyRouter --> S_Order
-        StrategyRouter --> S_Checkout
-        StrategyRouter --> S_Cancel
-   
-    Strategies -- "Reads available items" --> MenuRepo
-    Strategies -- "Calculates totals, caches cart" --> OrderRepo
-   
-    S_Checkout -- "Initiates payment" --> PaySvc
-    WebCtrl -- "Triggers fulfillment" --> PaySvc
-   
-    PaySvc -- "Marks order PAID, awards points" --> OrderRepo
-    PaySvc -- "Emits 'PAYMENT_SUCCESS'" --> Engine
-   
-        Engine -- "Broadcasts Events" --> Obs_Logger
-        Engine -- "Broadcasts Events" --> Obs_Worker
-    Obs_Worker -- "Queues async job payload" --> RedisQueue
+**Conversation State Machine:**
+```
+main_menu --"1"--> browsing_menu --item#--> browsing_menu (add to cart)
+browsing_menu --"99"--> checkout --"1" or "2"--> awaiting_schedule --minutes--> awaiting_payment
+main_menu --"99"--> checkout
+main_menu --"98"--> order_history --> main_menu
+main_menu --"97"--> payment_status --> main_menu
+main_menu --"0"--> cancel_order --> main_menu
+```
 
-    %% Styling
-    style Backend fill:#f9f9f9,stroke:#666,stroke-width:2px
-    style ChatCtrl fill:#85bbf0,stroke:#5b82a8
-    style WebCtrl fill:#85bbf0,stroke:#5b82a8
-    style Engine fill:#1168bd,stroke:#0b4884,color:#fff
-    style PaySvc fill:#85bbf0,stroke:#5b82a8
-    style Strategies fill:#cce5ff,stroke:#85bbf0
-    style Repositories fill:#cce5ff,stroke:#85bbf0
-    style Observers fill:#cce5ff,stroke:#85bbf0
+#### 2. Payment Flow
+
+```
+Frontend (POST /api/payment/initialize)
+  -> PaymentController.initiatePayment()
+  -> PaymentService.initiatePayment()
+     -> WalletRepository.findOrCreateBySessionId()
+     -> OrderRepository.createOrder(status: PENDING)
+     -> createPaymentProvider() -> PaystackProvider.initializeTransaction()
+     -> Returns authorization URL to frontend
+  -> User completes payment on Paystack
+  -> Paystack sends webhook (POST /api/payment/webhook)
+  -> PaymentController.handlePaystackWebhook()
+     -> Verifies HMAC-SHA512 signature from x-paystack-signature header
+     -> PaymentService.fulfillSuccessfulPayment()
+        -> PaystackProvider.verifyTransaction(reference)
+        -> WalletRepository.creditBalance()
+        -> WalletRepository.debitBalance()
+        -> OrderRepository.updateOrderStatus(COMPLETED)
+        -> BotEngine.notify("PAYMENT_SUCCESS", payload)
+           -> PaymentObserver emits Socket.IO "payment_success" to client
+  -> Frontend receives real-time notification
+```
+
+#### 3. Real-Time Notification Flow
+
+```
+Socket.IO Server (maintains sessionSocketMap: sessionId -> socketId)
+  <- Frontend connects with query: { sessionId }
+  <- PaymentObserver listens for BotEngine.notify() events
+  <- On "PAYMENT_SUCCESS" or "PAYMENT_FAILED":
+     -> Looks up socketId from sessionSocketMap
+     -> Emits "payment_success" or "payment_failed" to specific client
+  -> Frontend Socket.IO client listens and updates UI
+```
+
+#### 4. Scheduled Order Flow
+
+```
+CheckoutStrategy (during checkout)
+  -> Asks user for schedule time (minutes or 0 for immediate)
+  -> SchedulerService.scheduleOrder(orderId, scheduledAt)
+     -> Calculates delay = scheduledAt - now
+     -> Adds job to BullMQ "order-scheduler" queue
+  -> BullMQ Worker processes job at scheduled time
+     -> Checks if order exists and is COMPLETED
+     -> (Placeholder for future fulfillment logic)
+  -> Graceful shutdown: SchedulerService.dispose() closes queue + worker
+```
+
+### Design Patterns
+
+| Pattern              | Implementation                                                                          |
+|----------------------|-----------------------------------------------------------------------------------------|
+| **Strategy**         | `CommandStrategy` interface with 7 concrete strategies for conversational flows         |
+| **Factory**          | `createPaymentProvider()` creates payment provider instances                            |
+| **Observer**         | `Observer` interface with `LogObserver` and `PaymentObserver` attached to `BotEngine`   |
+| **Repository**       | Interface/implementation split for Menu, Order, Wallet data access                      |
+| **Dependency Injection** | All dependencies injected via constructors                                          |
+| **Singleton**        | BullMQ queue and worker use module-level singletons                                     |
+
+### Tech Stack
+
+**Backend:** TypeScript, Express.js, Socket.IO, Prisma, PostgreSQL (Neon), Redis, BullMQ, Zod, Pino
+**Frontend (Planned):** Astro, Vue 3 (Composition API), Pinia, Tailwind CSS, Socket.IO Client
+**Payments:** Paystack (NGN), Circle USDC (To be implemented)
