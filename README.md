@@ -8,7 +8,7 @@ A conversational restaurant ordering system built with TypeScript, Express.js, V
 
 ```text
 +=============================================================================================================+
-|  [Container: Client-Side Web Application (Astro + Vue 3 + Pinia + Tailwind + Socket.IO Client)]  [PLANNED]  |
+|  [Container: Client-Side Web Application (Vite + Vue 3 + Pinia + Tailwind + Socket.IO Client)]  [PLANNED]  |
 |                                                                                                             |
 |  [Components]                                                                                               |
 |  +------------------+    +------------------+    +------------------+    +------------------+               |
@@ -224,5 +224,5 @@ CheckoutStrategy (during checkout)
 ### Tech Stack
 
 **Backend:** TypeScript, Express.js, Socket.IO, Prisma, PostgreSQL (Neon), Redis, BullMQ, Zod, Pino
-**Frontend (Planned):** Astro, Vue 3 (Composition API), Pinia, Tailwind CSS, Socket.IO Client
+**Frontend (Planned):** Vite, Vue 3 (Composition API), Pinia, Tailwind CSS, Socket.IO Client
 **Payments:** Paystack (NGN), Circle USDC (To be implemented)
