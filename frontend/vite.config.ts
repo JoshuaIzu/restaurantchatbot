@@ -12,14 +12,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://restaurantchatbot-f116c9f47ce0.herokuapp.com',
         changeOrigin: true,
          cookieDomainRewrite: 'localhost',
         cookiePathRewrite: '/',
         selfHandleResponse: false,  // Don't intercept response
       },
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'https://restaurantchatbot-f116c9f47ce0.herokuapp.com',
         changeOrigin: true,
         ws: true,
       },
