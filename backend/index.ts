@@ -26,7 +26,7 @@ import path from 'path';
 async function bootstrap() {
     const app = express();
     app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? '*' : ' http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || 'https://restaurantchatbot-f116c9f47ce0.herokuapp.com',
     credentials: true
     }));
 
