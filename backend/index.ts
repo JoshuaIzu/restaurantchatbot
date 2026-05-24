@@ -1,4 +1,5 @@
 import "dotenv/config";
+import cors from 'cors';
 import express, { Request, Response } from 'express';
 import session from 'express-session';
 import { createClient } from 'redis';
@@ -20,9 +21,14 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import {SchedulerService} from "./services/scheduler.service";
 import { validateChat, validatePaymentInit } from './middleware/validator';
+import path from 'path';
 
 async function bootstrap() {
     const app = express();
+    app.use(cors({
+    origin: process.env.NODE_ENV === 'production' ? '*' : ' http://localhost:5173',
+    credentials: true
+    }));
 
     app.use((req: Request, res: Response, next) => {
         if (req.path === '/api/payment/webhook') {
@@ -93,6 +99,8 @@ async function bootstrap() {
 
     botEngine.registerStrategy('checkout', checkoutStrategy);
     botEngine.registerStrategy('checkout_payment_selection', checkoutStrategy);
+    botEngine.registerStrategy('awaiting_schedule', checkoutStrategy);
+    botEngine.registerStrategy('awaiting_payment', checkoutStrategy);
 
     const server = createServer(app);
     const io = new Server(server, {
@@ -195,6 +203,13 @@ async function bootstrap() {
             res.status(500).json({ error: 'Failed to fetch transactions' });
         }
     });
+
+   if (process.env.NODE_ENV === 'production') {
+        app.use(express.static(path.join(__dirname, '../frontend/dist')));
+        app.get('*', (_req: Request, res: Response) => {
+            res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+        });
+    }
 
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {

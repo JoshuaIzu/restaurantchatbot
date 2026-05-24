@@ -9,6 +9,7 @@ import { IOrderRepository } from "../repositories/order.repository";
 import {LogObserver} from "../observers/log-observer";
 import { CancelOrderStrategy } from "../strategies/cancel-order.strategy";
 import { PaymentStatusStrategy } from "../strategies/payment-status.strategy";
+import { ViewCartStrategy } from "../strategies/view-cart.strategy";
 
 export class BotEngine {
     private observer: Observer[] = [];
@@ -27,6 +28,7 @@ export class BotEngine {
         this.strategies.set('order_history', new HistoryStrategy(this.orderRepo));
         this.strategies.set('cancel_order', new CancelOrderStrategy());
         this.strategies.set('payment_status', new PaymentStatusStrategy(this.orderRepo));
+        this.strategies.set('view_cart', new ViewCartStrategy());
     }
 
     public registerStrategy(key: string, strategy: CommandStrategy): void {
@@ -50,13 +52,23 @@ export class BotEngine {
     }
 
     private resolveStrategy(context: SessionContext, input: string): string {
+        const globalCommands: Record<string, string> = {
+            '98': 'order_history',
+            '97': 'payment_status',
+            '96': 'view_cart',
+            '0': 'cancel_order',
+        };
+        if (globalCommands[input]) {
+            return globalCommands[input];
+        }
+
+        if (!this.strategies.has(context.state)) {
+            context.state = 'main_menu';
+        }
         if (context.state === 'main_menu') {
             const routeMap: Record<string, string> = {
                 '1': 'browsing_menu',
                 '99': 'checkout',
-                '98': 'order_history',
-                '97': 'payment_status',
-                '0': 'cancel_order',
             };
             return routeMap[input] || 'main_menu';
         }

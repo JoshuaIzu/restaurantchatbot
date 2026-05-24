@@ -14,6 +14,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+         cookieDomainRewrite: 'localhost',
+        cookiePathRewrite: '/',
+        selfHandleResponse: false,  // Don't intercept response
       },
       '/socket.io': {
         target: 'http://localhost:3000',

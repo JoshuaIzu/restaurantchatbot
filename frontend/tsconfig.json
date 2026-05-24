@@ -5,8 +5,4 @@
     { "path": "./tsconfig.node.json" },
 
   ],
-  "paths": {
-  "@/*": ["./src/*"],
-  "@types": ["./types/*"]
-}
 }

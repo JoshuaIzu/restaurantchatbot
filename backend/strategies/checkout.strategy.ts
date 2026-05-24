@@ -17,7 +17,7 @@ export class CheckoutStrategy implements CommandStrategy {
             };
         }
 
-        if (context.state === 'awaiting_schedule') {
+        if (context.state === 'awaiting_schedule' || context.state === 'awaiting_payment') {
             return await this.processScheduleInput(context, input);
         }
 
@@ -59,9 +59,11 @@ export class CheckoutStrategy implements CommandStrategy {
                 currency,
             };
 
+            context.cart = [];
+            const symbol = currency === 'NGN' ? '₦' : '$';
             return {
-                messages: ['Schedule for later? Reply with minutes (e.g., 30) or 0 for immediate.'],
-                newState: 'awaiting_schedule',
+                messages: [`Your total is ${symbol}${totalAmount.toLocaleString()}. Enter your email to proceed with payment.\n\nWant to schedule for later? Reply with minutes (e.g., 30) or 'cancel' to cancel.`],
+                newState: 'awaiting_payment',
             };
         } catch (error) {
             const typedError = error as Error;
@@ -73,32 +75,43 @@ export class CheckoutStrategy implements CommandStrategy {
     }
 
     private async processScheduleInput(context: SessionContext, input: string): Promise<BotResponse> {
-        const minutes = parseInt(input);
-        if (isNaN(minutes) || minutes < 0) {
+        if (input.toLowerCase() === 'cancel') {
+            context.cart = [];
+            context.pendingPayment = undefined;
             return {
-                messages: ['Invalid input. Reply with minutes (e.g., 30) or 0 for immediate.'],
-                newState: 'awaiting_schedule',
+                messages: ['Checkout cancelled. Returning to main menu.'],
+                newState: 'main_menu',
             };
+        }
+
+        const minutes = parseInt(input);
+        if (isNaN(minutes) || minutes <= 0) {
+            const pending = context.pendingPayment;
+            if (pending) {
+                const symbol = pending.currency === 'NGN' ? '₦' : '$';
+                return {
+                    messages: [`Your total is ${symbol}${pending.total.toLocaleString()}. Enter your email to proceed with payment.\n\nWant to schedule for later? Reply with minutes (e.g., 30) or 'cancel' to cancel.`],
+                    newState: 'awaiting_payment',
+                };
+            }
+            return { messages: ['Checkout session expired. Returning to main menu.'], newState: 'main_menu' };
         }
 
         const pending = context.pendingPayment;
         if (!pending) {
-            return { messages: ['Session expired. Please start checkout again.'], newState: 'main_menu' };
+            context.cart = [];
+            return { messages: ['Checkout session expired. Returning to main menu.'], newState: 'main_menu' };
         }
 
-        if (minutes > 0 && this.schedulerService) {
+        if (this.schedulerService) {
             const scheduledAt = new Date(Date.now() + minutes * 60000);
             await this.schedulerService.scheduleOrder(pending.orderId, scheduledAt);
         }
 
         context.cart = [];
         const symbol = pending.currency === 'NGN' ? '₦' : '$';
-        const scheduleMsg = minutes > 0
-            ? `Order scheduled for ${new Date(Date.now() + minutes * 60000).toLocaleTimeString()}. `
-            : '';
-
         return {
-            messages: [`${scheduleMsg}Your total is ${symbol}${pending.total.toLocaleString()}. Click here to pay: ${pending.authorizationUrl}`],
+            messages: [`Order scheduled for ${new Date(Date.now() + minutes * 60000).toLocaleTimeString()}. Your total is ${symbol}${pending.total.toLocaleString()}. Enter your email to proceed with payment.`],
             newState: 'awaiting_payment',
         };
     }

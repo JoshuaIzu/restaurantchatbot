@@ -1,46 +1,12 @@
 {
-  "name": "backend",
+  "name": "restaurant-chatbot",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
     "start": "tsx backend/index.ts",
-    "postinstall": "cd backend && prisma generate && prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts"
+    "postinstall": "cd backend && npm install && npx prisma generate && npx prisma migrate deploy && cd ../frontend && npm install && npm run build",
+    "seed": "tsx backend/prisma/seed.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "engines": {
     "node": "20.x"
-  },
-  "dependencies": {
-    "@ngrok/ngrok": "^1.7.0",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
-    "@types/socket.io": "^3.0.1",
-    "axios": "^1.16.1",
-    "bullmq": "^5.76.10",
-    "connect-redis": "^9.0.0",
-    "dotenv": "^17.4.2",
-    "express": "^4.21.0",
-    "express-session": "^1.18.0",
-    "pg": "^8.20.0",
-    "pinia": "^3.0.4",
-    "pino": "^10.3.1",
-    "prisma": "^7.8.0",
-    "redis": "^5.12.1",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
-    "tsx": "^4.22.1",
-    "vue-router": "^4.6.4",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/express-session": "^1.19.0",
-    "@types/node": "^25.8.0",
-    "@types/pg": "^8.20.0",
-    "typescript": "^6.0.3"
   }
 }

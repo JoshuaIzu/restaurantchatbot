@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 
 const chatSchema = z.object({
-    sessionId: z.string().min(1, 'Session ID is required'),
     message: z.string().min(1, 'Message cannot be empty'),
 });
 

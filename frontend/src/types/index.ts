@@ -67,6 +67,14 @@ export interface BotMessage {
 export interface ChatResponse {
   messages: string[]
   state: string
+  cart?: OrderItem[]
+  pendingPayment?: {
+    orderId: string
+    authorizationUrl: string
+    total: number
+    currency: string
+  }
+  sessionId?: string
 }
 
 export interface PaymentInitRequest {
@@ -87,4 +95,12 @@ export interface PaymentStatusResponse {
   status: PaymentStatus
   reference: string
   amount: number
+}
+
+
+export interface ChatMessage {
+  id: string
+  sender: 'user' | 'bot'
+  text: string
+  createdAt: string
 }

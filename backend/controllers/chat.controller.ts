@@ -7,6 +7,12 @@ declare module 'express-session' {
     interface SessionData {
         state: string;
         cart: OrderItem[];
+        pendingPayment?: {
+            orderId: string;
+            authorizationUrl: string;
+            total: number;
+            currency: string;
+        };
     }
 }
 
@@ -14,8 +20,10 @@ export class ChatController {
     constructor(private readonly botEngine: BotEngine, private readonly chatRepo: IChatRepository,) {}
 
     public async handleMessage(req: Request, res: Response): Promise<void> {
+
         try {
             const { message } = req.body;
+            console.log(`[DEBUG] Session ID: ${req.sessionID}, State: ${req.session.state}, Message: ${message}`);
 
             if(!message || typeof message !== 'string') {
                 res.status(400).json({ error: 'Invalid message format' });
@@ -25,7 +33,8 @@ export class ChatController {
             const context: SessionContext = {
                 sessionId: req.sessionID,
                 state: req.session.state || 'main_menu',
-                cart: req.session.cart || []
+                cart: req.session.cart || [],
+                pendingPayment: req.session.pendingPayment,
             }
             const messages: string[] = await this.botEngine.handleInput(context, message);
 
@@ -41,12 +50,13 @@ export class ChatController {
 
             req.session.state = context.state;
             req.session.cart = context.cart;
+            req.session.pendingPayment = context.pendingPayment;
 
             req.session.save((err: Error | null): void => {
                 if (err) {
                     console.error( 'Error saving session:', err);
                 }
-                res.status(200).json({ messages, state: context.state });
+                res.status(200).json({ messages, state: context.state, cart: context.cart, pendingPayment: context.pendingPayment, sessionId: req.sessionID });
             });
         } catch (error) {
             const typedError = error as Error;
