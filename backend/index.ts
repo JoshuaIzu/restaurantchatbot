@@ -63,7 +63,7 @@ async function bootstrap() {
     if (!sessionSecret) {
         throw new Error('SESSION_SECRET environment variable is required');
     }
-
+    app.set('trust proxy', 1);
     app.use(
         session({
             store: new RedisStore({ client: redisClient }),
