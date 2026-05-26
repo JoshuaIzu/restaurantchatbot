@@ -5,10 +5,10 @@ It also comes with an admin dashboard which requires a password to access, updat
 # Architecture Choice
 This project combines multiple architectural and behavioral patterns to build scalable, maintainable chatbot:
 
-- **Vertical Slicing** - Each Feature (chat, payments, orders) is organized from API layer -> service -> repository. The features are self contained  and easy to modify independently.
-- **Strategy Pattern** - Conversation flow (Menu browsing, checkout, order history) are encapsulated as strategies. Adding a new conversation path only requires implementing a new strategy; the core BotEngine never changes.
-- **Observer Pattern** - Real-time events (payment success, order updates) are decoupled from business logic. Observers can be added or swapped without modifying the core engine.
-- **Adapter Pattern** - Payment providers (Paystack, Circle USDC) are pluggable via the `PaymentProvider interface`. Adding a new payment method is just implementing one interface.
+- **Vertical Slicing**: Each Feature (chat, payments, orders) is organized from API layer -> service -> repository. The features are self contained  and easy to modify independently.
+- **Strategy Pattern**: Conversation flow (Menu browsing, checkout, order history) are encapsulated as strategies. Adding a new conversation path only requires implementing a new strategy; the core BotEngine never changes.
+- **Observer Pattern**: Real-time events (payment success, order updates) are decoupled from business logic. Observers can be added or swapped without modifying the core engine.
+- **Adapter Pattern**: Payment providers (Paystack, Circle USDC) are pluggable via the `PaymentProvider interface`. Adding a new payment method is just implementing one interface.
 
 **Positives:** Clear separation of concerns, easy to test and simple to extend
 

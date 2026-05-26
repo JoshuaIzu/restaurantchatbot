@@ -1,8 +1,8 @@
-# Restaurant ChatBot
+### Restaurant ChatBot
 
 A conversational restaurant ordering system built with TypeScript, Express.js, Vue 3, and PostgreSQL. Users interact with a chatbot interface to browse menus, place orders, and pay via Paystack or Circle USDC.
 
-## Architecture
+### Architecture
 
 ### C4 Component Diagram
 ![System Architecture Diagram](./system_architecture_diagram_updated.svg)
@@ -30,9 +30,9 @@ main_menu --"97"--> payment_status --> main_menu
 main_menu --"0"--> cancel_order --> main_menu
 ```
 **Patterns in play1:**
-- **Strategy** — `BotEngine` delegates to the correct `CommandStrategy` based on session state, keeping the engine thin and open to new commands
-- **Repository** — strategies read data through repository interfaces, not direct Prisma calls, enabling testability
-- **Session Management** — `SessionContext` is extracted from Redis-backed `express-session` on every request, bridging anonymous sessions with durable order data
+- **Strategy:** `BotEngine` delegates to the correct `CommandStrategy` based on session state, keeping the engine thin and open to new commands
+- **Repository:** strategies read data through repository interfaces, not direct Prisma calls, enabling testability
+- **Session Management:** `SessionContext` is extracted from Redis-backed `express-session` on every request, bridging anonymous sessions with durable order data
 
 
 
@@ -61,9 +61,9 @@ Frontend (POST /api/payment/initialize)
   -> Frontend receives real-time notification
 ```
 **Patterns in play2:**
-- **Factory** — `createPaymentProvider()` selects Paystack or Circle based on order currency, isolating provider creation
-- **Observer** — `BotEngine.notify("PAYMENT_SUCCESS")` fires to all registered observers without the payment service knowing about them
-- **Security** — HMAC-SHA512 webhook signature verification before any state mutation; payment confirmed server-side, not client-side
+- **Factory:** `createPaymentProvider()` selects Paystack or Circle based on order currency, isolating provider creation
+- **Observer:** `BotEngine.notify("PAYMENT_SUCCESS")` fires to all registered observers without the payment service knowing about them
+- **Security:** HMAC-SHA512 webhook signature verification before any state mutation; payment confirmed server-side, not client-side
 
 
 #### 3. Real-Time Notification Flow
@@ -78,8 +78,8 @@ Socket.IO Server (maintains sessionSocketMap: sessionId -> socketId)
   -> Frontend Socket.IO client listens and updates UI
 ```
 **Patterns in play3:**
-- **Observer** — `PaymentObserver` reacts to `BotEngine` events and pushes to Socket.IO — decoupled from business logic
-- **Session–Socket Mapping** — `sessionSocketMap` bridges the stateless HTTP session to a stateful WebSocket connection, enabling targeted real-time pushes to the correct client
+- **Observer:** `PaymentObserver` reacts to `BotEngine` events and pushes to Socket.IO — decoupled from business logic
+- **Session–Socket Mapping:** `sessionSocketMap` bridges the stateless HTTP session to a stateful WebSocket connection, enabling targeted real-time pushes to the correct client
 
 
 #### 4. Scheduled Order Flow
@@ -96,6 +96,6 @@ CheckoutStrategy (during checkout)
   -> Graceful shutdown: SchedulerService.dispose() closes queue + worker
 ```
 **Patterns in play4:**
-- **Strategy** — `CheckoutStrategy` handles scheduling as part of the checkout conversation flow
-- **Singleton** — BullMQ queue and worker are module-level singletons with graceful shutdown via `SchedulerService.dispose()`
-- **Async Decoupling** — scheduled orders are deferred via BullMQ in Redis, keeping the HTTP request cycle fast
+- **Strategy:** `CheckoutStrategy` handles scheduling as part of the checkout conversation flow
+- **Singleton:** BullMQ queue and worker are module-level singletons with graceful shutdown via `SchedulerService.dispose()`
+- **Async Decoupling:** scheduled orders are deferred via BullMQ in Redis, keeping the HTTP request cycle fast
